@@ -29,6 +29,9 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry");
 const SKIP_APIFY = args.includes("--skip-apify");
+// --resume picks up after npm has already published (e.g. the registry token
+// expired mid-run). It re-runs only the registry, Apify, and tag-push steps.
+const RESUME = args.includes("--resume");
 const bumpArg = args.find((a) => !a.startsWith("--"));
 
 const c = {
@@ -119,17 +122,33 @@ const actorPath = join(ROOT, ".actor", "actor.json");
 const pkg = readJson(pkgPath);
 const server = readJson(serverPath);
 const from = pkg.version;
-const to = nextVersion(from, bumpArg);
+// On resume the version is already bumped and published; don't move it again.
+const to = RESUME ? from : nextVersion(from, bumpArg);
 
-console.log(c.bold(`\nReleasing ${pkg.name}  ${from} -> ${to}`));
+console.log(c.bold(`\n${RESUME ? "Resuming release of" : "Releasing"} ${pkg.name}  ${RESUME ? to : `${from} -> ${to}`}`));
 if (DRY) console.log(c.yellow("DRY RUN — nothing will be written, published, or pushed."));
+if (RESUME) console.log(c.yellow("RESUME — skipping version bump, build, commit and npm publish."));
+
+/**
+ * Bail out after npm has already gone out. npm publishes are permanent, so the
+ * only safe move is to say exactly what landed and how to finish the rest —
+ * never to imply the whole release failed.
+ */
+function partial(what, hint) {
+  console.error(`\n${c.red(c.bold("PARTIAL RELEASE"))} — ${what}`);
+  console.error(`  ${c.green("done")}      npm ${pkg.name}@${to} is published and cannot be unpublished`);
+  console.error(`  ${c.yellow("remaining")} MCP Registry${SKIP_APIFY ? "" : " + Apify"}`);
+  if (hint) console.error(`\n${hint}`);
+  console.error(`\n${c.bold("Finish with:")}  npm run release -- --resume`);
+  process.exit(1);
+}
 
 // -------------------------------------------------------------- preflight
 say("Preflight checks");
 
 const dirty = run("git", ["status", "--porcelain"], { capture: true }).out;
 if (dirty) {
-  if (!DRY) {
+  if (!DRY && !RESUME) {
     die("Working tree has uncommitted changes.",
         "Commit or stash them first so the release commit only contains the version bump.");
   }
@@ -152,6 +171,10 @@ if ((server.description || "").length > 100) {
 ok(`description length ${(server.description || "").length}/100`);
 
 // ------------------------------------------------------------ write files
+if (RESUME) {
+  say(`Resuming at ${to} — already on npm`);
+  info("skipped: version bump, build, commit, npm publish");
+} else {
 say("Bumping version in all manifests");
 
 pkg.version = to;
@@ -183,7 +206,9 @@ if (DRY) {
 } else {
   run("git", ["add", "-A"]);
   run("git", ["-c", "core.safecrlf=false", "commit", "-q", "-m", `Release v${to}`]);
-  run("git", ["tag", `v${to}`]);
+  // Must be ANNOTATED (-a): `git push --follow-tags` ignores lightweight tags,
+  // so a plain `git tag` silently never reaches the remote.
+  run("git", ["tag", "-a", `v${to}`, "-m", `Release v${to}`]);
   run("git", ["push", "-q", "origin", "main", "--follow-tags"]);
   ok(`pushed commit and tag v${to}`);
 }
@@ -216,11 +241,12 @@ if (DRY) {
     sleep(5000);
   }
   if (!seen) {
-    die("npm still isn't serving the new version after 2 minutes.",
-        `Wait a moment, then finish with: .tools/mcp-publisher.exe publish`);
+    partial("npm still isn't serving the new version after 2 minutes.",
+            "Give the registry a minute to catch up, then resume.");
   }
   ok(`npm is serving ${to}`);
 }
+} // end of !RESUME block
 
 // -------------------------------------------------------------- registry
 say("Publishing to the MCP Registry");
@@ -236,10 +262,11 @@ if (DRY) {
   if (r.status !== 0) {
     const blob = `${r.out}\n${r.err}`;
     if (/expired|Unauthorized|401/i.test(blob)) {
-      die("Registry token expired.",
-          `Run:  ${publisher} login github\nthen: ${publisher} publish`);
+      partial("the MCP Registry token has expired.",
+              `${c.bold("First re-authenticate:")}\n  ${publisher} login github`);
     }
-    die("Registry publish failed.", blob.trim().split("\n").slice(-4).join("\n"));
+    partial("the MCP Registry rejected the publish.",
+            blob.trim().split("\n").slice(-4).join("\n"));
   }
   ok(`registry updated to ${to}`);
 }
@@ -264,6 +291,21 @@ if (!SKIP_APIFY) {
   }
 } else {
   console.log(`\n${c.yellow("Skipped Apify.")} The hosted Actor still runs the previous code.`);
+}
+
+// ------------------------------------------------------- tags catch-up
+// A tag can exist locally but never have reached the remote (this is how the
+// lightweight-tag bug hid). Push it explicitly rather than assuming.
+if (!DRY) {
+  say("Ensuring the tag is on the remote");
+  const remoteTags = run("git", ["ls-remote", "--tags", "origin"], { capture: true, allowFail: true }).out;
+  if (remoteTags.includes(`refs/tags/v${to}`)) {
+    ok(`v${to} already on remote`);
+  } else {
+    const r = run("git", ["push", "origin", `v${to}`], { capture: true, allowFail: true });
+    if (r.status === 0) ok(`pushed tag v${to}`);
+    else console.log(`    ${c.yellow("WARN")} could not push tag v${to} — push it manually`);
+  }
 }
 
 // ---------------------------------------------------------------- summary
