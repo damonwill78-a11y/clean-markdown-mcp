@@ -49,8 +49,17 @@ jobs:
       - name: Smoke test the MCP server
         run: node scripts/smoke-test.mjs
 
+      # Skip if this version is already on npm, so re-running a release that
+      # failed at a later step doesn't die here on a version conflict.
       - name: Publish to npm
-        run: npm publish --access public
+        run: |
+          PKG=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          if npm view "$PKG@$VER" version >/dev/null 2>&1; then
+            echo "$PKG@$VER is already published - skipping."
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -92,6 +101,9 @@ jobs:
             exit 0
           fi
           npm install -g apify-cli
+          # The CLI does NOT pick up APIFY_TOKEN on its own - it exits with
+          # "You are not logged in" unless you log in explicitly first.
+          apify login --token "$APIFY_TOKEN"
           apify push --force --wait-for-finish=0
 
       - name: Summary
