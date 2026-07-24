@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.damonwill78/clean-markdown",
-  "description": "Turns any URL into clean, LLM-ready Markdown. Strips ads, nav, and boilerplate using Mozilla Readability. Built for RAG pipelines and AI agents.",
+  "name": "io.github.damonwill78-a11y/clean-markdown",
+  "description": "Any URL to clean, LLM-ready Markdown for RAG. Strips ads, nav, and boilerplate.",
   "repository": {
-    "url": "https://github.com/damonwill78/clean-markdown-mcp",
+    "url": "https://github.com/damonwill78-a11y/clean-markdown-mcp",
     "source": "github"
   },
   "version": "1.1.1",
