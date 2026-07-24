@@ -1,6 +1,6 @@
 {
   "name": "clean-markdown-mcp",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "mcpName": "io.github.damonwill78-a11y/clean-markdown",
   "description": "MCP server that turns any URL into clean, LLM-ready Markdown. Strips ads, nav, and boilerplate using Mozilla Readability. Built for RAG pipelines and AI agents.",
   "homepage": "https://clean-markdown-landing.vercel.app",
