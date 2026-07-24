@@ -32,6 +32,11 @@ const SKIP_APIFY = args.includes("--skip-apify");
 // --resume picks up after npm has already published (e.g. the registry token
 // expired mid-run). It re-runs only the registry, Apify, and tag-push steps.
 const RESUME = args.includes("--resume");
+// By DEFAULT the script only prepares the release and pushes the tag — GitHub
+// Actions does the publishing, which needs no interactive logins. --local
+// publishes straight from this machine instead (the old behaviour), which is
+// the fallback if CI is broken. Resuming is inherently a local operation.
+const LOCAL = args.includes("--local") || RESUME;
 const bumpArg = args.find((a) => !a.startsWith("--"));
 
 const c = {
@@ -194,6 +199,19 @@ if (existsSync(actorPath)) {
   info(`.actor/actor.json     -> ${actorVersion}`);
 }
 
+// package-lock.json carries the version too. If it drifts, `npm ci` refuses to
+// run — which breaks the CI release rather than anything local, so it is easy
+// to miss until the workflow fails.
+if (!DRY) {
+  run("npm", ["install", "--package-lock-only", "--no-audit", "--no-fund"], { capture: true });
+  const lockVersion = readJson(join(ROOT, "package-lock.json")).version;
+  if (lockVersion !== to) {
+    die(`package-lock.json is at ${lockVersion}, expected ${to}.`,
+        "Run `npm install --package-lock-only` and commit the result.");
+  }
+  info(`package-lock.json     -> ${to}`);
+}
+
 // ------------------------------------------------------------------ build
 say("Building");
 run("npm", ["run", "build"]);
@@ -211,6 +229,23 @@ if (DRY) {
   run("git", ["tag", "-a", `v${to}`, "-m", `Release v${to}`]);
   run("git", ["push", "-q", "origin", "main", "--follow-tags"]);
   ok(`pushed commit and tag v${to}`);
+}
+
+// ------------------------------------------------------- hand off to CI
+if (!LOCAL) {
+  const repo = (pkg.repository?.url || "")
+    .replace(/^git\+/, "")
+    .replace(/\.git$/, "");
+  say("Handing off to GitHub Actions");
+  if (DRY) {
+    info("would stop here; pushing the tag triggers the Release workflow");
+  } else {
+    ok(`tag v${to} pushed — the Release workflow is now publishing`);
+  }
+  console.log(`\n${c.bold("Watch it:")} ${repo}/actions`);
+  console.log(c.dim("It publishes to npm, the MCP Registry (OIDC), and Apify."));
+  console.log(c.dim(`If CI is unavailable, publish from here instead: npm run release -- ${bumpArg ?? "patch"} --local`));
+  process.exit(0);
 }
 
 // ------------------------------------------------------------------ npm

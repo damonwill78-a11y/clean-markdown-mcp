@@ -1,0 +1,106 @@
+name: Release
+
+# Pushing a version tag publishes everywhere. Nothing here needs an interactive
+# login: the MCP Registry uses GitHub OIDC (no stored token, nothing to expire)
+# and npm uses an automation token, which is exempt from the one-time password.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: # lets you re-run a release by hand from the Actions tab
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required for MCP Registry OIDC
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          # Required for NODE_AUTH_TOKEN to authenticate the publish below.
+          registry-url: "https://registry.npmjs.org"
+
+      # Catch a mistagged release before anything is published. npm publishes
+      # are permanent, so this guard runs first.
+      - name: Check tag matches the manifests
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          SRV=$(node -p "require('./server.json').version")
+          SRV_PKG=$(node -p "require('./server.json').packages[0].version")
+          echo "tag=$TAG package.json=$PKG server.json=$SRV server.packages[0]=$SRV_PKG"
+          if [ "$TAG" != "$PKG" ] || [ "$TAG" != "$SRV" ] || [ "$TAG" != "$SRV_PKG" ]; then
+            echo "::error::Version mismatch. Tag v$TAG must match package.json, server.json, and server.json packages[0].version."
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Smoke test the MCP server
+        run: node scripts/smoke-test.mjs
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # The MCP Registry verifies the npm version exists before accepting the
+      # server. Publishing is not instant, so wait rather than race it.
+      - name: Wait for npm to serve the new version
+        run: |
+          PKG=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          for i in $(seq 1 30); do
+            if npm view "$PKG@$VER" version >/dev/null 2>&1; then
+              echo "npm is serving $PKG@$VER"
+              exit 0
+            fi
+            echo "not visible yet ($i/30), waiting 5s..."
+            sleep 5
+          done
+          echo "::error::npm did not serve $PKG@$VER within 150s."
+          exit 1
+
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      - name: Authenticate to the MCP Registry (OIDC)
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish to the MCP Registry
+        run: ./mcp-publisher publish
+
+      # Optional: only runs if an APIFY_TOKEN secret exists, so the release
+      # still succeeds for anyone who hasn't set one up.
+      - name: Deploy the Apify Actor
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+        run: |
+          if [ -z "$APIFY_TOKEN" ]; then
+            echo "APIFY_TOKEN not set - skipping the Apify deploy."
+            exit 0
+          fi
+          npm install -g apify-cli
+          apify push --force --wait-for-finish=0
+
+      - name: Summary
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          NAME=$(node -p "require('./server.json').name")
+          {
+            echo "### Released v$VER"
+            echo ""
+            echo "- npm: https://www.npmjs.com/package/$(node -p "require('./package.json').name")"
+            echo "- MCP Registry: \`$NAME\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -9,14 +9,21 @@
  * Run it with:  node dist/index.js
  */
 
+import { createRequire } from "node:module";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { scrapeUrl, ScrapeError } from "./scraper.js";
 
+// Read the version at runtime rather than hardcoding it — a literal here goes
+// stale the moment a release bumps package.json, and nothing would catch it.
+// (npm always ships package.json, so this resolves for installed users too.)
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json") as { version: string };
+
 const server = new McpServer({
   name: "url-to-markdown",
-  version: "1.1.0",
+  version,
 });
 
 server.registerTool(
