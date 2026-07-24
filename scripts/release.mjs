@@ -51,25 +51,41 @@ function die(msg, hint) {
 }
 
 /**
- * Resolve a command to something spawnable WITHOUT a shell. npm and apify are
- * .cmd shims on Windows. Going through a shell would work, but it concatenates
- * arguments instead of escaping them — which mangles anything containing spaces
- * and is exactly what Node's DEP0190 warns about.
+ * On Windows, npm/npx/apify are .cmd shims. Node refuses to spawn a .cmd
+ * without a shell (it was closed off as a command-injection hole), so those
+ * MUST go through one. Everything else — git, mcp-publisher.exe — is a real
+ * executable and is spawned directly.
+ *
+ * When a shell IS used we pass one pre-joined string rather than an args array,
+ * because a shell concatenates array args instead of escaping them (Node's
+ * DEP0190). That's safe here only because every shelled command below uses
+ * space-free arguments. Anything with spaces — notably `git commit -m` — takes
+ * the direct, array-based path where Node handles the quoting.
  */
-function exe(cmd) {
-  if (process.platform !== "win32") return cmd;
-  return ["npm", "npx", "apify", "vercel"].includes(cmd) ? `${cmd}.cmd` : cmd;
-}
+const WIN_SHIM = new Set(["npm", "npx", "apify", "vercel"]);
 
 function run(cmd, cmdArgs, { capture = false, allowFail = false } = {}) {
-  const r = spawnSync(exe(cmd), cmdArgs, {
-    cwd: ROOT,
-    stdio: capture ? ["ignore", "pipe", "pipe"] : "inherit",
-    encoding: "utf8",
-  });
+  const useShell = process.platform === "win32" && WIN_SHIM.has(cmd);
+  const stdio = capture ? ["ignore", "pipe", "pipe"] : "inherit";
+
+  if (useShell && cmdArgs.some((a) => /\s/.test(a))) {
+    die(`Internal error: "${cmd}" was given an argument containing a space.`,
+        "Shelled commands must use space-free arguments — see the comment above run().");
+  }
+
+  const r = useShell
+    ? spawnSync([cmd, ...cmdArgs].join(" "), { cwd: ROOT, shell: true, stdio, encoding: "utf8" })
+    : spawnSync(cmd, cmdArgs, { cwd: ROOT, stdio, encoding: "utf8" });
+
   if (!allowFail && r.status !== 0) {
-    die(`\`${cmd} ${cmdArgs.join(" ")}\` exited with ${r.status}`,
-        capture ? (r.stderr || "").trim().split("\n").slice(-3).join("\n") : undefined);
+    // r.error is set when the process could not be started at all; without it
+    // you just get "exited with null", which says nothing useful.
+    const detail = r.error
+      ? r.error.message
+      : capture
+        ? (r.stderr || "").trim().split("\n").slice(-3).join("\n")
+        : undefined;
+    die(`\`${cmd} ${cmdArgs.join(" ")}\` failed (exit ${r.status})`, detail);
   }
   return { status: r.status, out: (r.stdout || "").trim(), err: (r.stderr || "").trim() };
 }
