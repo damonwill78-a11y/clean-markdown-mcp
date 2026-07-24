@@ -1,0 +1,17 @@
+{
+  "actorSpecification": 1,
+  "name": "url-to-markdown",
+  "title": "URL to Clean Markdown — LLM-Ready Text Extractor",
+  "description": "Turn any web page into clean, LLM-ready Markdown. Strips ads, menus, and boilerplate so you get just the content. Optional JavaScript rendering for modern sites. Pay only for pages scraped successfully.",
+  "version": "1.1",
+  "readme": "./README.md",
+  "meta": {
+    "templateId": "ts-empty"
+  },
+  "dockerfile": "../Dockerfile",
+  "input": "./input_schema.json",
+  "output": "./output_schema.json",
+  "storages": {
+    "dataset": "./dataset_schema.json"
+  }
+}

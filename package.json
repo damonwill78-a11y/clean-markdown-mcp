@@ -1,0 +1,68 @@
+{
+  "name": "clean-markdown-mcp",
+  "version": "1.1.1",
+  "mcpName": "io.github.damonwill78/clean-markdown",
+  "description": "MCP server that turns any URL into clean, LLM-ready Markdown. Strips ads, nav, and boilerplate using Mozilla Readability. Built for RAG pipelines and AI agents.",
+  "homepage": "https://clean-markdown-landing.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/damonwill78/clean-markdown-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/damonwill78/clean-markdown-mcp/issues"
+  },
+  "type": "module",
+  "bin": {
+    "clean-markdown-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "mcp": "node dist/index.js",
+    "actor": "node dist/main.js",
+    "try": "node dist/try.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "claude",
+    "rag",
+    "llm",
+    "ai-agent",
+    "scraper",
+    "web-scraping",
+    "markdown",
+    "html-to-markdown",
+    "readability",
+    "apify"
+  ],
+  "author": "Damon Williams",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@mozilla/readability": "^0.5.0",
+    "apify": "^3.2.6",
+    "jsdom": "^24.1.0",
+    "turndown": "^7.2.0",
+    "turndown-plugin-gfm": "^1.0.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^20.14.0",
+    "@types/turndown": "^5.0.4",
+    "typescript": "^5.5.0"
+  }
+}

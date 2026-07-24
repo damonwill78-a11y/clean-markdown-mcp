@@ -1,0 +1,46 @@
+{
+  "title": "URL to Clean Markdown — Input",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "startUrls": {
+      "title": "Page URLs",
+      "type": "array",
+      "description": "One or more web page URLs to convert to Markdown. Each successfully scraped page is charged once.",
+      "editor": "stringList",
+      "prefill": ["https://en.wikipedia.org/wiki/Markdown"],
+      "items": {
+        "type": "string",
+        "pattern": "^https?://"
+      }
+    },
+    "url": {
+      "title": "Single page URL (optional)",
+      "type": "string",
+      "description": "Shortcut for scraping just one page. You can use this instead of, or in addition to, the list above.",
+      "editor": "textfield",
+      "pattern": "^https?://"
+    },
+    "renderJs": {
+      "title": "Render JavaScript",
+      "type": "boolean",
+      "description": "Load each page in a real browser so content built by JavaScript is captured. Slower, but works on modern app-style sites.",
+      "default": false
+    },
+    "renderWaitMs": {
+      "title": "Extra wait after load (ms)",
+      "type": "integer",
+      "description": "When 'Render JavaScript' is on, wait this many extra milliseconds after the page loads so late content can appear.",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 30000,
+      "unit": "milliseconds"
+    },
+    "includeLinks": {
+      "title": "Keep hyperlinks",
+      "type": "boolean",
+      "description": "If on, hyperlinks are kept in the Markdown. Turn off for cleaner plain prose.",
+      "default": true
+    }
+  }
+}

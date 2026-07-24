@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "clean-markdown": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\19013\\Downloads\\Claude Workspace\\projects\\url-to-markdown-mcp\\dist\\index.js"
+      ]
+    }
+  }
+}

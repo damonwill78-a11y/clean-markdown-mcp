@@ -1,0 +1,91 @@
+{
+  "actorSpecification": 1,
+  "fields": {
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string",
+        "title": "URL",
+        "description": "The final URL that was scraped, after any redirects.",
+        "example": "https://example.com/"
+      },
+      "title": {
+        "type": ["string", "null"],
+        "title": "Title",
+        "description": "The article or page title, when one could be detected.",
+        "example": "Example Domain"
+      },
+      "excerpt": {
+        "type": ["string", "null"],
+        "title": "Excerpt",
+        "description": "A short summary of the page, when available.",
+        "example": "This domain is for use in documentation examples."
+      },
+      "siteName": {
+        "type": ["string", "null"],
+        "title": "Source",
+        "description": "The site or publication name, when available.",
+        "example": "Wikimedia Foundation, Inc."
+      },
+      "wordCount": {
+        "type": "integer",
+        "title": "Words",
+        "description": "Approximate number of words in the extracted Markdown.",
+        "example": 3092
+      },
+      "markdown": {
+        "type": "string",
+        "title": "Markdown",
+        "description": "The clean, readable Markdown content. This is the main payload.",
+        "example": "This domain is for use in documentation examples without needing permission."
+      },
+      "scrapedAt": {
+        "type": "string",
+        "title": "Scraped at",
+        "description": "ISO 8601 timestamp of when the page was scraped.",
+        "example": "2026-07-23T20:31:00.000Z"
+      },
+      "error": {
+        "type": "string",
+        "title": "Error",
+        "description": "Present only when a page could not be scraped. Such pages are never charged.",
+        "example": "The server returned HTTP 404 (Not Found)."
+      }
+    }
+  },
+  "views": {
+    "overview": {
+      "title": "Scraped pages",
+      "description": "Clean Markdown for each page, with its title, source, and length.",
+      "transformation": {
+        "fields": ["title", "siteName", "wordCount", "url", "markdown", "scrapedAt"]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "title": { "label": "Title" },
+          "siteName": { "label": "Source" },
+          "wordCount": { "label": "Words", "format": "number" },
+          "url": { "label": "URL", "format": "link" },
+          "markdown": { "label": "Markdown", "format": "text" },
+          "scrapedAt": { "label": "Scraped at", "format": "datetime" }
+        }
+      }
+    },
+    "errors": {
+      "title": "Failed pages",
+      "description": "Pages that could not be scraped. These are never charged.",
+      "transformation": {
+        "fields": ["url", "error", "scrapedAt"]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "url": { "label": "URL", "format": "link" },
+          "error": { "label": "What went wrong" },
+          "scrapedAt": { "label": "Attempted at", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

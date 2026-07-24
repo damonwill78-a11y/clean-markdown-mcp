@@ -1,0 +1,18 @@
+{
+  "_note": "REFERENCE ONLY. Apify does not read this file — configure pay-per-event pricing in the Apify Console (Publication > Monetization). Event names must match src/main.ts EXACTLY: 'page-scraped' for normal fetches and 'page-rendered' for JavaScript-rendered pages. This file just records the values you should enter.",
+  "pricingModel": "PAY_PER_EVENT",
+  "pricingPerEvent": {
+    "actorChargeEvents": {
+      "page-scraped": {
+        "eventTitle": "Page scraped",
+        "eventDescription": "Charged once each time a page is successfully fetched, cleaned, and converted to Markdown. Failed pages are not charged.",
+        "eventPriceUsd": 0.01
+      },
+      "page-rendered": {
+        "eventTitle": "Page rendered with JavaScript",
+        "eventDescription": "Charged once per page when JavaScript rendering is enabled. Rendering runs a real browser and uses much more compute, so it is priced higher. Failed pages are not charged.",
+        "eventPriceUsd": 0.03
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "actorOutputSchemaVersion": 1,
+  "title": "Clean Markdown output",
+  "description": "One record per page: the clean Markdown plus its title, source, and word count. Pages that could not be scraped appear with an 'error' field and are never charged.",
+  "properties": {
+    "pages": {
+      "type": "string",
+      "title": "Scraped pages",
+      "description": "Every scraped page with its clean Markdown and metadata, as JSON.",
+      "template": "{{links.apiDefaultDatasetUrl}}/items?clean=true"
+    }
+  }
+}
