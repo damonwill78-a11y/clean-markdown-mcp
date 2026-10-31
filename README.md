@@ -1,5 +1,7 @@
 # clean-markdown-mcp
 
+[![Clean Markdown MCP server](https://mcprush.com/badge/clean-markdown-mcp/card.svg)](https://mcprush.com/to/clean-markdown-mcp?ref=badge)
+
 An [MCP](https://modelcontextprotocol.io) server that turns any URL into **clean,
 LLM-ready Markdown** — no ads, no nav bars, no cookie banners, no scripts.
 
